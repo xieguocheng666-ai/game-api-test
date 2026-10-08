@@ -85,6 +85,15 @@ def init_db():
         conn.commit()
     finally:
         conn.close()
+    seed_shop()
+
+
+def seed_shop():
+    execute(
+        "INSERT IGNORE INTO shop_items (id, name, price, item_id, item_count, buy_limit) VALUES "
+        "(1,'sword',100,1001,1,0),(2,'gems',999999,1002,1,0),(3,'ticket',10,1003,1,1)",
+        (),
+    )
 
 
 def fetch_one(sql, args):

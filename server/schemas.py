@@ -22,3 +22,7 @@ class CreateCharacterRequest(BaseModel):
 class AddItemRequest(BaseModel):
     item_id: int
     count: int
+
+
+class BuyRequest(BaseModel):
+    shop_item_id: int

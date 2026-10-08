@@ -3,7 +3,7 @@ from fastapi import FastAPI, Depends, HTTPException, Header
 from . import db
 from . import auth
 from . import config
-from .schemas import LoginRequest, LoginResponse, RegisterRequest, CreateCharacterRequest, AddItemRequest
+from .schemas import LoginRequest, LoginResponse, RegisterRequest, CreateCharacterRequest, AddItemRequest, BuyRequest
 
 app = FastAPI(title="Game API Test SUT")
 
@@ -71,6 +71,44 @@ def add_item(req: AddItemRequest, user_id: int = Depends(get_current_user)):
             (user_id, req.item_id, min(req.count, config.ITEM_STACK_LIMIT)),
         )
     return {"item_id": req.item_id}
+
+
+@app.post("/shop/buy")
+def buy(req: BuyRequest, user_id: int = Depends(get_current_user)):
+    item = db.fetch_one("SELECT * FROM shop_items WHERE id=%s", (req.shop_item_id,))
+    if not item:
+        raise HTTPException(status_code=404, detail="item not found")
+    bought = db.fetch_one(
+        "SELECT count FROM purchase_records WHERE player_id=%s AND item_id=%s",
+        (user_id, item["item_id"]),
+    )
+    bought_count = bought["count"] if bought else 0
+    if item["buy_limit"] > 0 and bought_count >= item["buy_limit"]:
+        raise HTTPException(status_code=400, detail="buy limit reached")
+    currency = db.fetch_one("SELECT gold FROM currencies WHERE player_id=%s", (user_id,))
+    if currency["gold"] < item["price"]:
+        raise HTTPException(status_code=400, detail="insufficient gold")
+    conn = db.get_conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("UPDATE currencies SET gold=gold-%s WHERE player_id=%s", (item["price"], user_id))
+            cur.execute(
+                "INSERT INTO inventory (player_id, item_id, count) VALUES (%s, %s, %s) "
+                "ON DUPLICATE KEY UPDATE count=LEAST(count+%s, %s)",
+                (user_id, item["item_id"], item["item_count"], item["item_count"], config.ITEM_STACK_LIMIT),
+            )
+            cur.execute(
+                "INSERT INTO purchase_records (player_id, item_id, count) VALUES (%s, %s, %s) "
+                "ON DUPLICATE KEY UPDATE count=count+%s",
+                (user_id, item["item_id"], 1, 1),
+            )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+    return {"ok": True}
 
 
 @app.post("/characters")
