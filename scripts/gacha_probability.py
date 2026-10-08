@@ -64,7 +64,7 @@ def run(seed=None):
     for i, r in enumerate(rates):
         print(f"{r:>4}  实际 {observed[i]:>5} ({observed[i]/N*100:.2f}%)  期望 {expected[i]:>7.1f}")
     print("-" * 60)
-    print(f"卡方统计量 χ² = {chi2:.3f}（自由度 {df}，临界值 {critical}）")
+    print(f"卡方统计量 chi2 = {chi2:.3f}（自由度 {df}，临界值 {critical}）")
     chi2_ok = chi2 < critical
     print(f"卡方拟合优度：{'通过（分布符合设定概率）' if chi2_ok else '未通过'}")
     print("-" * 60)
@@ -77,6 +77,9 @@ def run(seed=None):
 
 
 if __name__ == "__main__":
+    # Windows 默认 GBK 控制台无法编码 Unicode（如 χ²），强制 UTF-8 输出避免崩溃/乱码
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
     seed = int(sys.argv[1]) if len(sys.argv) > 1 else None
     ok = run(seed)
     sys.exit(0 if ok else 1)
