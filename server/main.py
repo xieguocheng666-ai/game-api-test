@@ -90,6 +90,11 @@ def buy(req: BuyRequest, user_id: int = Depends(get_current_user)):
     currency = db.fetch_one("SELECT gold FROM currencies WHERE player_id=%s", (user_id,))
     if currency["gold"] < item["price"]:
         raise HTTPException(status_code=400, detail="insufficient gold")
+    existing_inv = db.fetch_one("SELECT count FROM inventory WHERE player_id=%s AND item_id=%s", (user_id, item["item_id"]))
+    if not existing_inv:
+        slots = db.fetch_one("SELECT COUNT(*) AS c FROM inventory WHERE player_id=%s", (user_id,))["c"]
+        if slots >= config.INVENTORY_SLOT_LIMIT:
+            raise HTTPException(status_code=400, detail="inventory full")
     conn = db.get_conn()
     try:
         with conn.cursor() as cur:
@@ -129,6 +134,7 @@ def create_character(req: CreateCharacterRequest, user_id: int = Depends(get_cur
 @app.post("/characters/{char_id}/ban")
 def ban_character(char_id: int, user_id: int = Depends(get_current_user)):
     db.execute("UPDATE characters SET status='banned' WHERE id=%s AND player_id=%s", (char_id, user_id))
+    auth.remove_login(user_id)
     return {"status": "banned"}
 
 
@@ -141,5 +147,5 @@ def pull(user_id: int = Depends(get_current_user)):
 @app.post("/logout")
 def logout(user_id: int = Depends(get_current_user)):
     auth.remove_login(user_id)
-    db.execute("UPDATE characters SET status='offline' WHERE player_id=%s", (user_id,))
+    db.execute("UPDATE characters SET status='offline' WHERE player_id=%s AND status='online'", (user_id,))
     return {"ok": True}

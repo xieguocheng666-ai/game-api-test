@@ -37,7 +37,7 @@ def decode_token(token: str) -> int:
 
 
 def save_login(user_id: int, token: str):
-    _redis.set(f"login_token:{user_id}", token)
+    _redis.set(f"login_token:{user_id}", token, ex=config.JWT_EXPIRE_SECONDS)
 
 
 def is_latest_token(user_id: int, token: str) -> bool:

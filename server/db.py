@@ -124,15 +124,3 @@ def execute(sql, args):
         conn.commit()
     finally:
         conn.close()
-
-
-def execute_many(sql, arg_seq):
-    """在一个事务里执行多条 SQL，全部成功才提交（用于购买的原子性）。"""
-    conn = get_conn()
-    try:
-        with conn.cursor() as cur:
-            for args in arg_seq:
-                cur.execute(sql, args)
-        conn.commit()
-    finally:
-        conn.close()
