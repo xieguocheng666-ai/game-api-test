@@ -2,7 +2,8 @@ from fastapi import FastAPI, Depends, HTTPException, Header
 
 from . import db
 from . import auth
-from .schemas import LoginRequest, LoginResponse, RegisterRequest, CreateCharacterRequest
+from . import config
+from .schemas import LoginRequest, LoginResponse, RegisterRequest, CreateCharacterRequest, AddItemRequest
 
 app = FastAPI(title="Game API Test SUT")
 
@@ -53,6 +54,23 @@ def get_current_user(authorization: str = Header(None)) -> int:
 @app.get("/inventory")
 def get_inventory(user_id: int = Depends(get_current_user)):
     return {"items": db.fetch_all("SELECT item_id, count FROM inventory WHERE player_id=%s", (user_id,))}
+
+
+@app.post("/inventory/add")
+def add_item(req: AddItemRequest, user_id: int = Depends(get_current_user)):
+    existing = db.fetch_one("SELECT count FROM inventory WHERE player_id=%s AND item_id=%s", (user_id, req.item_id))
+    if existing:
+        new_count = min(existing["count"] + req.count, config.ITEM_STACK_LIMIT)
+        db.execute("UPDATE inventory SET count=%s WHERE player_id=%s AND item_id=%s", (new_count, user_id, req.item_id))
+    else:
+        slots = db.fetch_one("SELECT COUNT(*) AS c FROM inventory WHERE player_id=%s", (user_id,))["c"]
+        if slots >= config.INVENTORY_SLOT_LIMIT:
+            raise HTTPException(status_code=400, detail="inventory full")
+        db.execute(
+            "INSERT INTO inventory (player_id, item_id, count) VALUES (%s, %s, %s)",
+            (user_id, req.item_id, min(req.count, config.ITEM_STACK_LIMIT)),
+        )
+    return {"item_id": req.item_id}
 
 
 @app.post("/characters")

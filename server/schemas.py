@@ -17,3 +17,8 @@ class RegisterRequest(BaseModel):
 
 class CreateCharacterRequest(BaseModel):
     name: str
+
+
+class AddItemRequest(BaseModel):
+    item_id: int
+    count: int
