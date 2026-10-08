@@ -22,3 +22,5 @@ ITEM_STACK_LIMIT = 999         # 单种道具叠加上限
 GACHA_SSR_PITY = 90            # SSR 硬保底
 GACHA_SR_PITY = 10             # SR 10 连保底
 GACHA_RATES = {"SSR": 0.03, "SR": 0.15, "R": 0.82}
+GACHA_COST = 10                  # 每抽消耗金币
+GACHA_ITEMS = {"SSR": 2001, "SR": 2002, "R": 2003}  # 稀有度 → 背包道具 id

@@ -66,3 +66,28 @@ def test_buy_twice_exact_deduction_and_stack(auth_header, client, player_id):
     assert _gold(player_id) == 800
     items = {i["item_id"]: i["count"] for i in client.get("/inventory", headers=auth_header).json()["items"]}
     assert items[1001] == 2
+
+
+@allure.feature("商城")
+@allure.story("幂等键防重复扣款")
+def test_buy_idempotency_key_prevents_duplicate_charge(auth_header, client, player_id):
+    gold0 = _gold(player_id)
+    headers = {**auth_header, "Idempotency-Key": "buy-once"}
+    r1 = client.post("/shop/buy", json={"shop_item_id": 1}, headers=headers)
+    assert r1.status_code == 200
+    assert _gold(player_id) == gold0 - 100
+    r2 = client.post("/shop/buy", json={"shop_item_id": 1}, headers=headers)
+    assert r2.status_code == 200
+    assert r2.json() == {"ok": True, "duplicate": True}
+    assert _gold(player_id) == gold0 - 100
+    items = {i["item_id"]: i["count"] for i in client.get("/inventory", headers=auth_header).json()["items"]}
+    assert items[1001] == 1
+
+
+@allure.feature("商城")
+@allure.story("不同幂等键分别扣款")
+def test_buy_different_keys_charge_separately(auth_header, client, player_id):
+    gold0 = _gold(player_id)
+    client.post("/shop/buy", json={"shop_item_id": 1}, headers={**auth_header, "Idempotency-Key": "k1"})
+    client.post("/shop/buy", json={"shop_item_id": 1}, headers={**auth_header, "Idempotency-Key": "k2"})
+    assert _gold(player_id) == gold0 - 200

@@ -59,6 +59,13 @@ CREATE TABLE IF NOT EXISTS gacha_pity (
     sr_pity INT NOT NULL DEFAULT 0,
     FOREIGN KEY (player_id) REFERENCES players(id)
 );
+
+CREATE TABLE IF NOT EXISTS idempotency_keys (
+    idempotency_key VARCHAR(64) PRIMARY KEY,
+    player_id INT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (player_id) REFERENCES players(id)
+);
 """
 
 

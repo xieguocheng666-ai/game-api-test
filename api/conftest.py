@@ -6,6 +6,7 @@ from server.main import app
 
 # 按外键依赖顺序排列：先删子表再删父表，保证用例可重复执行（幂等）。
 _TABLES = (
+    "idempotency_keys",
     "purchase_records",
     "gacha_pity",
     "inventory",

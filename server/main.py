@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Depends, HTTPException, Header
+from pymysql.err import IntegrityError
 
 from . import db
 from . import auth
@@ -76,7 +77,11 @@ def add_item(req: AddItemRequest, user_id: int = Depends(get_current_user)):
 
 
 @app.post("/shop/buy")
-def buy(req: BuyRequest, user_id: int = Depends(get_current_user)):
+def buy(
+    req: BuyRequest,
+    user_id: int = Depends(get_current_user),
+    idempotency_key: str = Header(None, alias="Idempotency-Key"),
+):
     item = db.fetch_one("SELECT * FROM shop_items WHERE id=%s", (req.shop_item_id,))
     if not item:
         raise HTTPException(status_code=404, detail="item not found")
@@ -96,26 +101,42 @@ def buy(req: BuyRequest, user_id: int = Depends(get_current_user)):
         if slots >= config.INVENTORY_SLOT_LIMIT:
             raise HTTPException(status_code=400, detail="inventory full")
     conn = db.get_conn()
+    duplicate = False
     try:
         with conn.cursor() as cur:
-            cur.execute("UPDATE currencies SET gold=gold-%s WHERE player_id=%s", (item["price"], user_id))
-            cur.execute(
-                "INSERT INTO inventory (player_id, item_id, count) VALUES (%s, %s, %s) "
-                "ON DUPLICATE KEY UPDATE count=LEAST(count+%s, %s)",
-                (user_id, item["item_id"], item["item_count"], item["item_count"], config.ITEM_STACK_LIMIT),
-            )
-            cur.execute(
-                "INSERT INTO purchase_records (player_id, item_id, count) VALUES (%s, %s, %s) "
-                "ON DUPLICATE KEY UPDATE count=count+%s",
-                (user_id, item["item_id"], 1, 1),
-            )
-        conn.commit()
+            if idempotency_key:
+                try:
+                    cur.execute(
+                        "INSERT INTO idempotency_keys (idempotency_key, player_id) VALUES (%s, %s)",
+                        (idempotency_key, user_id),
+                    )
+                except IntegrityError:
+                    duplicate = True
+            if not duplicate:
+                cur.execute(
+                    "UPDATE currencies SET gold=gold-%s WHERE player_id=%s AND gold>=%s",
+                    (item["price"], user_id, item["price"]),
+                )
+                cur.execute(
+                    "INSERT INTO inventory (player_id, item_id, count) VALUES (%s, %s, %s) "
+                    "ON DUPLICATE KEY UPDATE count=LEAST(count+%s, %s)",
+                    (user_id, item["item_id"], item["item_count"], item["item_count"], config.ITEM_STACK_LIMIT),
+                )
+                cur.execute(
+                    "INSERT INTO purchase_records (player_id, item_id, count) VALUES (%s, %s, %s) "
+                    "ON DUPLICATE KEY UPDATE count=count+%s",
+                    (user_id, item["item_id"], 1, 1),
+                )
+        if duplicate:
+            conn.rollback()
+        else:
+            conn.commit()
     except Exception:
         conn.rollback()
         raise
     finally:
         conn.close()
-    return {"ok": True}
+    return {"ok": True, "duplicate": True} if duplicate else {"ok": True}
 
 
 @app.post("/characters")
@@ -139,8 +160,16 @@ def ban_character(char_id: int, user_id: int = Depends(get_current_user)):
 
 
 @app.post("/gacha")
-def pull(user_id: int = Depends(get_current_user)):
-    rarity = gacha.gacha_pull(user_id)
+def pull(
+    user_id: int = Depends(get_current_user),
+    idempotency_key: str = Header(None, alias="Idempotency-Key"),
+):
+    try:
+        rarity = gacha.gacha_pull(user_id, idempotency_key)
+    except gacha.InsufficientGold:
+        raise HTTPException(status_code=400, detail="insufficient gold")
+    except gacha.DuplicateRequest:
+        return {"duplicate": True}
     return {"rarity": rarity}
 
 
