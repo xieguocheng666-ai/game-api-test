@@ -3,6 +3,7 @@ from fastapi import FastAPI, Depends, HTTPException, Header
 from . import db
 from . import auth
 from . import config
+from . import gacha
 from .schemas import LoginRequest, LoginResponse, RegisterRequest, CreateCharacterRequest, AddItemRequest, BuyRequest
 
 app = FastAPI(title="Game API Test SUT")
@@ -128,3 +129,9 @@ def create_character(req: CreateCharacterRequest, user_id: int = Depends(get_cur
 def ban_character(char_id: int, user_id: int = Depends(get_current_user)):
     db.execute("UPDATE characters SET status='banned' WHERE id=%s AND player_id=%s", (char_id, user_id))
     return {"status": "banned"}
+
+
+@app.post("/gacha")
+def pull(user_id: int = Depends(get_current_user)):
+    rarity = gacha.gacha_pull(user_id)
+    return {"rarity": rarity}
