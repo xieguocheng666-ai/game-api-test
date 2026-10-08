@@ -13,3 +13,7 @@ class LoginResponse(BaseModel):
 class RegisterRequest(BaseModel):
     username: str
     password: str
+
+
+class CreateCharacterRequest(BaseModel):
+    name: str
