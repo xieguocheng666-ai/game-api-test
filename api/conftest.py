@@ -33,3 +33,9 @@ def auth_header(client):
     resp = client.post("/login", json={"username": username, "password": password})
     token = resp.json()["token"]
     return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture()
+def player_id(auth_header):
+    """返回已注册测试玩家 player_a 的 user_id，供白盒校验状态/货币/保底。"""
+    return db.fetch_one("SELECT id FROM players WHERE username='player_a'", ())["id"]

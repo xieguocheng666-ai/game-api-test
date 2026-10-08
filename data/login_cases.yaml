@@ -1,0 +1,9 @@
+# 登录异常数据驱动：每行 = 一组 (用户名, 密码, 期望状态码)
+- name: wrong_password
+  username: player_a
+  password: wrong
+  expected_code: 401
+- name: nonexistent_user
+  username: ghost
+  password: whatever
+  expected_code: 401

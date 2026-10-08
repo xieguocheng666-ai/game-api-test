@@ -1,0 +1,16 @@
+# 背包边界值数据驱动：count 为 0 / 1 / 999
+- name: count_zero
+  item_id: 2001
+  count: 0
+  expected_code: 422
+  expected_count: null
+- name: count_one
+  item_id: 2002
+  count: 1
+  expected_code: 200
+  expected_count: 1
+- name: count_999
+  item_id: 2003
+  count: 999
+  expected_code: 200
+  expected_count: 999

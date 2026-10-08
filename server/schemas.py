@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class LoginRequest(BaseModel):
@@ -21,7 +21,7 @@ class CreateCharacterRequest(BaseModel):
 
 class AddItemRequest(BaseModel):
     item_id: int
-    count: int
+    count: int = Field(gt=0)
 
 
 class BuyRequest(BaseModel):

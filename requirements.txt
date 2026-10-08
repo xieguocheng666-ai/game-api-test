@@ -6,3 +6,5 @@ redis
 python-dotenv
 pytest
 httpx
+allure-pytest
+PyYAML
