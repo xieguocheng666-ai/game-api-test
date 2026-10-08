@@ -20,3 +20,10 @@ def test_relogin_kicks_old_token(client):
     assert resp.status_code == 401
     resp = client.get("/inventory", headers={"Authorization": f"Bearer {t2}"})
     assert resp.status_code == 200
+
+
+def test_logout_invalidates_token(auth_header, client):
+    resp = client.post("/logout", headers=auth_header)
+    assert resp.status_code == 200
+    resp = client.get("/inventory", headers=auth_header)
+    assert resp.status_code == 401

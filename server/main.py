@@ -34,6 +34,7 @@ def login(req: LoginRequest):
     char = db.fetch_one("SELECT status FROM characters WHERE player_id=%s", (player["id"],))
     if char and char["status"] == "banned":
         raise HTTPException(status_code=403, detail="account banned")
+    db.execute("UPDATE characters SET status='online' WHERE player_id=%s", (player["id"],))
     token = auth.create_token(player["id"])
     auth.save_login(player["id"], token)
     return {"token": token}
@@ -135,3 +136,10 @@ def ban_character(char_id: int, user_id: int = Depends(get_current_user)):
 def pull(user_id: int = Depends(get_current_user)):
     rarity = gacha.gacha_pull(user_id)
     return {"rarity": rarity}
+
+
+@app.post("/logout")
+def logout(user_id: int = Depends(get_current_user)):
+    auth.remove_login(user_id)
+    db.execute("UPDATE characters SET status='offline' WHERE player_id=%s", (user_id,))
+    return {"ok": True}
